@@ -2238,6 +2238,7 @@ const HOSTAWAY_CLIENT_ID = '97925';
 const UPDATED = '12 Jun 2026';
 
 // ── Utils ─────────────────────────────────────────────────────────────────────
+window.addEventListener('load', function() {
 const { useState, useMemo, useRef, useEffect, createElement: h } = React;
 const { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } = Recharts;
 
@@ -2701,6 +2702,7 @@ function App() {
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+}); // end window.onload
 </script>
 </body>
 </html>
