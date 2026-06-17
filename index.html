@@ -23,10 +23,10 @@ table{border-collapse:collapse;width:100%}
 
 <script>
 // ── Auth ──────────────────────────────────────────────────────────────────────
-(function() {
+window.__AUTH_OK = (function() {
   const PASS = '365stays2024';
   const KEY = 'ds_auth';
-  if (sessionStorage.getItem(KEY) === '1') return;
+  if (sessionStorage.getItem(KEY) === '1') return true;
   document.getElementById('root').innerHTML = '';
   const el = document.createElement('div');
   el.style.cssText = 'display:flex;align-items:center;justify-content:center;height:100vh;background:#0f1117;font-family:Inter,system-ui,sans-serif';
@@ -51,8 +51,12 @@ table{border-collapse:collapse;width:100%}
   }
   document.getElementById('btn').addEventListener('click', attempt);
   document.getElementById('pw').addEventListener('keydown', e => { if(e.key==='Enter') attempt(); });
-  throw new Error('auth');
+  return false;
 })();
+</script>
+
+<script>
+if (!window.__AUTH_OK) { throw new Error('not authenticated'); }
 </script>
 
 <script>
