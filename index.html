@@ -2254,27 +2254,17 @@ const YEAR_COLORS = ['#6c8ef5','#f5a623','#52c4a0','#e05c5c','#c47af5'];
 
 // ── Fetch Hostaway live ───────────────────────────────────────────────────────
 async function fetchHostawayLive() {
-  // Get token
-  const tokenResp = await fetch('https://api.hostaway.com/v1/accessTokens', {
-    method: 'POST',
-    headers: {'Content-Type':'application/x-www-form-urlencoded'},
-    body: `grant_type=client_credentials&client_id=${HOSTAWAY_CLIENT_ID}&client_secret=${HOSTAWAY_SECRET}&scope=general`
-  });
-  const tokenData = await tokenResp.json();
-  const token = tokenData.access_token;
-  if (!token) throw new Error('No token');
-
-  // Fetch all pages
+  // Use Vercel API proxy to avoid CORS
+  const API = '/api/hostaway';
   let all = [], offset = 0, hasMore = true;
   while (hasMore) {
-    const url = `https://api.hostaway.com/v1/reservations?arrivalStartDate=2023-01-01&arrivalEndDate=2026-12-31&limit=100&offset=${offset}&sortOrder=asc&includeResources=1`;
-    const resp = await fetch(url, {headers:{Authorization:`Bearer ${token}`,'Cache-control':'no-cache'}});
+    const resp = await fetch(`${API}?action=reservations&from=2023-01-01&to=2026-12-31&offset=${offset}`);
     const data = await resp.json();
     const result = data.result || [];
     all = all.concat(result);
     hasMore = result.length === 100;
     offset += result.length;
-    if (offset > 2000) break; // safety
+    if (offset > 2000) break;
   }
   return all;
 }
@@ -2379,7 +2369,6 @@ function Tip({active, payload, label}) {
 // ── Main App ──────────────────────────────────────────────────────────────────
 function App() {
   const [hostawayLive, setHostawayLive] = useState([]);
-  const [loadingLive, setLoadingLive] = useState(false);
   const [liveStatus, setLiveStatus] = useState('');
   const [years, setYears] = useState(['2026']);
   const [compareYear, setCompareYear] = useState('2025');
@@ -2389,7 +2378,6 @@ function App() {
 
   // Load live data on mount
   useEffect(() => {
-    setLoadingLive(true);
     setLiveStatus('Conectando con Hostaway...');
     fetchHostawayLive()
       .then(list => {
@@ -2397,16 +2385,14 @@ function App() {
         setHostawayLive(parsed);
         setLiveStatus(`✓ ${parsed.length} reservas en tiempo real`);
       })
-      .catch(e => setLiveStatus('⚠ Sin datos en tiempo real (usando histórico)'))
-      .finally(() => setLoadingLive(false));
+      .catch(e => setLiveStatus('⚠ Usando datos históricos'));
   }, []);
 
-  // Merge all data, deduplicate by date+property+amount
+  // Merge historical + live, deduplicate
   const ALL_DATA = useMemo(() => {
     const seen = new Set();
     const result = [];
-    const allSources = [...AIRBNB_RAW, ...HOSTAWAY_CSV_RAW, ...hostawayLive];
-    for (const r of allSources) {
+    for (const r of [...AIRBNB_RAW, ...HOSTAWAY_CSV_RAW, ...hostawayLive]) {
       const key = `${r.date}_${r.property}_${Math.round(r.amount)}`;
       if (seen.has(key)) continue;
       seen.add(key);
