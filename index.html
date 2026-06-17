@@ -6,7 +6,7 @@
 <title>365stays · Dashboard</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+<!-- Recharts removed, using SVG charts -->
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:#0f1117;font-family:Inter,system-ui,sans-serif;color:#e8eaf0;min-height:100vh}
@@ -2240,7 +2240,7 @@ const UPDATED = '12 Jun 2026';
 // ── Utils ─────────────────────────────────────────────────────────────────────
 window.addEventListener('load', function() {
 const { useState, useMemo, useRef, useEffect, createElement: h } = React;
-const { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } = Recharts;
+// SVG charts — no external deps
 
 const C = {bg:'#0f1117',surface:'#1a1d27',border:'#2a2d3a',accent:'#6c8ef5',accent2:'#52c4a0',accent3:'#f5a623',text:'#e8eaf0',muted:'#7a7e94',danger:'#e05c5c',up:'#52c4a0',down:'#e05c5c'};
 const PROP_COLORS = {'IB - Pinos':'#6c8ef5','IB - Arcos':'#52c4a0'};
@@ -2580,46 +2580,111 @@ function App() {
       )
     ),
 
-    // GRÁFICOS
+    // GRÁFICOS (SVG puro, sin Recharts)
     view==='graficos' && h('div', {style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}},
+      // ── Barras ingresos mensuales ──
       h('div', {style:{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:20,gridColumn:'1/-1'}},
         h('div', {style:{fontSize:11,color:C.muted,marginBottom:12,textTransform:'uppercase',letterSpacing:'0.06em'}}, `${revLabel} mensual${showCmp?` · gris = ${compareYear}`:''}`),
-        h(ResponsiveContainer, {width:'100%',height:220},
-          h(BarChart, {data:chartData,margin:{top:0,right:0,left:0,bottom:0}},
-            h(CartesianGrid, {strokeDasharray:'3 3',stroke:C.border}),
-            h(XAxis, {dataKey:'label',tick:{fill:C.muted,fontSize:9},axisLine:false,tickLine:false}),
-            h(YAxis, {tick:{fill:C.muted,fontSize:9},axisLine:false,tickLine:false,tickFormatter:v=>v>=1000?`${(v/1000).toFixed(0)}k`:v}),
-            h(Tooltip, {content:h(Tip)}),
-            h(Legend, {wrapperStyle:{fontSize:10,color:C.muted}}),
-            showCmp&&h(Bar, {dataKey:'ing_cmp',name:`${compareYear} (comp.)`,fill:C.muted,opacity:0.35,radius:[3,3,0,0]}),
-            ...years.map((y,i) => h(Bar, {key:y,dataKey:`ing_${y}`,name:y,fill:yearColor(y,i),radius:[3,3,0,0]}))
+        h('div', {style:{overflowX:'auto'}},
+          h('svg', {width:'100%',height:220,viewBox:`0 0 ${Math.max(chartData.length*54+60,400)} 220`,preserveAspectRatio:'none',style:{display:'block'}},
+            (() => {
+              const W = Math.max(chartData.length*54+60,400), H = 220, PL=40, PT=10, PB=28, PR=10;
+              const cw = W-PL-PR, ch = H-PT-PB;
+              const allVals = chartData.flatMap(d => [...years.map(y=>d[`ing_${y}`]||0), showCmp?d.ing_cmp||0:0]);
+              const maxV = Math.max(...allVals, 1);
+              const barsPerMonth = years.length + (showCmp?1:0);
+              const groupW = cw / Math.max(chartData.length,1);
+              const bW = Math.min(Math.max((groupW/barsPerMonth)-2, 4), 30);
+              const ticks = [0, 0.25, 0.5, 0.75, 1].map(t => Math.round(t*maxV));
+              return [
+                // grid lines
+                ...ticks.map(t => {
+                  const y = PT + ch - (t/maxV)*ch;
+                  return h('g', {key:'g'+t},
+                    h('line', {x1:PL,y1:y,x2:W-PR,y2:y,stroke:C.border,strokeDasharray:'3 3'}),
+                    h('text', {x:PL-4,y:y+3,fill:C.muted,fontSize:8,textAnchor:'end'}, t>=1000?`${(t/1000).toFixed(0)}k`:t)
+                  );
+                }),
+                // bars
+                ...chartData.map((d,mi) => {
+                  const gx = PL + mi*groupW;
+                  const bars = [...(showCmp?[{key:'cmp',v:d.ing_cmp||0,color:C.muted,opacity:0.35}]:[]), ...years.map((y,i)=>({key:y,v:d[`ing_${y}`]||0,color:yearColor(y,i),opacity:1}))];
+                  return h('g', {key:'m'+mi},
+                    bars.map((b,bi) => {
+                      const bh = (b.v/maxV)*ch;
+                      const bx = gx + bi*(bW+2) + (groupW - barsPerMonth*(bW+2))/2;
+                      const by = PT + ch - bh;
+                      return h('rect', {key:b.key,x:bx,y:by,width:bW,height:Math.max(bh,0),fill:b.color,opacity:b.opacity,rx:2});
+                    }),
+                    h('text', {x:gx+groupW/2,y:H-PB+14,fill:C.muted,fontSize:8,textAnchor:'middle'}, d.label)
+                  );
+                }),
+                // legend
+                ...years.map((y,i) => h('g', {key:'leg'+y, transform:`translate(${PL + i*55}, ${H-5})`},
+                  h('rect', {x:0,y:-8,width:8,height:8,fill:yearColor(y,i),rx:1}),
+                  h('text', {x:11,y:0,fill:C.muted,fontSize:9}, y)
+                )),
+                showCmp && h('g', {key:'legcmp', transform:`translate(${PL + years.length*55}, ${H-5})`},
+                  h('rect', {x:0,y:-8,width:8,height:8,fill:C.muted,opacity:0.5,rx:1}),
+                  h('text', {x:11,y:0,fill:C.muted,fontSize:9}, `${compareYear} (comp.)`)
+                )
+              ];
+            })()
           )
         )
       ),
+      // ── Línea noches / mes ──
       h('div', {style:{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:20}},
         h('div', {style:{fontSize:11,color:C.muted,marginBottom:12,textTransform:'uppercase',letterSpacing:'0.06em'}}, 'Noches / mes'),
-        h(ResponsiveContainer, {width:'100%',height:200},
-          h(LineChart, {data:chartData,margin:{top:0,right:0,left:0,bottom:0}},
-            h(CartesianGrid, {strokeDasharray:'3 3',stroke:C.border}),
-            h(XAxis, {dataKey:'label',tick:{fill:C.muted,fontSize:9},axisLine:false,tickLine:false}),
-            h(YAxis, {tick:{fill:C.muted,fontSize:9},axisLine:false,tickLine:false}),
-            h(Tooltip, {content:h(Tip)}),
-            h(Legend, {wrapperStyle:{fontSize:10,color:C.muted}}),
-            showCmp&&h(Line, {type:'monotone',dataKey:'noc_cmp',name:`${compareYear} (comp.)`,stroke:C.muted,strokeWidth:1,strokeDasharray:'4 4',dot:false}),
-            ...years.map((y,i) => h(Line, {key:y,type:'monotone',dataKey:`noc_${y}`,name:y,stroke:yearColor(y,i),strokeWidth:2,dot:false}))
-          )
+        h('svg', {width:'100%',height:200,viewBox:'0 0 400 200',preserveAspectRatio:'none',style:{display:'block'}},
+          (() => {
+            const W=400, H=200, PL=30, PT=10, PB=28, PR=10;
+            const cw=W-PL-PR, ch=H-PT-PB;
+            const allVals = chartData.flatMap(d => [...years.map(y=>d[`noc_${y}`]||0), showCmp?d.noc_cmp||0:0]);
+            const maxV = Math.max(...allVals, 1);
+            const pts = (key) => chartData.map((d,i) => [PL + (i/(chartData.length-1||1))*cw, PT + ch - ((d[key]||0)/maxV)*ch]);
+            const ptsToPath = (arr) => arr.map((p,i) => (i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+            const ticks = [0, 0.5, 1].map(t => Math.round(t*maxV));
+            return [
+              ...ticks.map(t => {
+                const y = PT + ch - (t/maxV)*ch;
+                return h('g', {key:'g'+t},
+                  h('line', {x1:PL,y1:y,x2:W-PR,y2:y,stroke:C.border,strokeDasharray:'3 3'}),
+                  h('text', {x:PL-4,y:y+3,fill:C.muted,fontSize:8,textAnchor:'end'}, t)
+                );
+              }),
+              showCmp && h('path', {key:'cmp',d:ptsToPath(pts('noc_cmp')),fill:'none',stroke:C.muted,strokeWidth:1,strokeDasharray:'4 4'}),
+              ...years.map((y,i) => h('path', {key:y,d:ptsToPath(pts(`noc_${y}`)),fill:'none',stroke:yearColor(y,i),strokeWidth:2})),
+              ...chartData.map((d,i) => h('text', {key:'x'+i,x:PL+(i/(chartData.length-1||1))*cw,y:H-PB+14,fill:C.muted,fontSize:8,textAnchor:'middle'}, d.label)),
+              ...years.map((y,i) => h('g', {key:'leg'+y, transform:`translate(${PL + i*55}, ${H-3})`},
+                h('line', {x1:0,y1:-5,x2:10,y2:-5,stroke:yearColor(y,i),strokeWidth:2}),
+                h('text', {x:13,y:0,fill:C.muted,fontSize:9}, y)
+              ))
+            ];
+          })()
         )
       ),
+      // ── Top propiedades ──
       h('div', {style:{background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,padding:20}},
         h('div', {style:{fontSize:11,color:C.muted,marginBottom:12,textTransform:'uppercase',letterSpacing:'0.06em'}}, 'Top propiedades'),
-        h(ResponsiveContainer, {width:'100%',height:200},
-          h(BarChart, {data:byProp.slice(0,10),layout:'vertical',margin:{top:0,right:10,left:65,bottom:0}},
-            h(CartesianGrid, {strokeDasharray:'3 3',stroke:C.border,horizontal:false}),
-            h(XAxis, {type:'number',tick:{fill:C.muted,fontSize:9},axisLine:false,tickLine:false,tickFormatter:v=>v>=1000?`${(v/1000).toFixed(0)}k`:v}),
-            h(YAxis, {type:'category',dataKey:'name',tick:{fill:C.text,fontSize:9},axisLine:false,tickLine:false,width:62}),
-            h(Tooltip, {content:h(Tip)}),
-            h(Bar, {dataKey:'ingresos',name:'Ingresos',fill:C.accent,radius:[0,3,3,0]})
-          )
+        h('svg', {width:'100%',height:220,viewBox:'0 0 400 220',preserveAspectRatio:'none',style:{display:'block'}},
+          (() => {
+            const W=400, H=220, PL=80, PT=8, PR=50, PB=8;
+            const data = byProp.slice(0,10);
+            const ch_inner = H-PT-PB;
+            const barH = Math.max(ch_inner/Math.max(data.length,1) - 4, 8);
+            const maxV = Math.max(...data.map(d=>d.ingresos), 1);
+            const cw = W-PL-PR;
+            return data.map((d,i) => {
+              const y = PT + i*(ch_inner/data.length);
+              const bw = (d.ingresos/maxV)*cw;
+              return h('g', {key:d.name},
+                h('text', {x:PL-6,y:y+barH/2+4,fill:C.text,fontSize:9,textAnchor:'end'}, d.name.length>12?d.name.slice(0,11)+'…':d.name),
+                h('rect', {x:PL,y,width:Math.max(bw,0),height:barH,fill:C.accent,rx:2,opacity:0.9}),
+                bw>30 && h('text', {x:PL+bw+4,y:y+barH/2+4,fill:C.muted,fontSize:8}, d.ingresos>=1000?`${(d.ingresos/1000).toFixed(0)}k`:d.ingresos)
+              );
+            });
+          })()
         )
       )
     ),
