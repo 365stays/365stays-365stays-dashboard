@@ -22,44 +22,6 @@ table{border-collapse:collapse;width:100%}
 <div id="root"><div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#7a7e94;font-size:14px">Cargando...</div></div>
 
 <script>
-// ── Auth ──────────────────────────────────────────────────────────────────────
-window.__AUTH_OK = (function() {
-  const PASS = '365stays2024';
-  const KEY = 'ds_auth';
-  if (sessionStorage.getItem(KEY) === '1') return true;
-  document.getElementById('root').innerHTML = '';
-  const el = document.createElement('div');
-  el.style.cssText = 'display:flex;align-items:center;justify-content:center;height:100vh;background:#0f1117;font-family:Inter,system-ui,sans-serif';
-  el.innerHTML = `
-    <div style="background:#1a1d27;border:1px solid #2a2d3a;border-radius:12px;padding:40px;width:320px;text-align:center">
-      <div style="font-size:22px;font-weight:700;color:#e8eaf0;margin-bottom:6px">365stays</div>
-      <div style="font-size:12px;color:#7a7e94;margin-bottom:28px">Dashboard · Acceso restringido</div>
-      <input id="pw" type="password" placeholder="Contraseña" style="width:100%;background:#0f1117;border:1px solid #2a2d3a;border-radius:7px;padding:11px 14px;font-size:14px;color:#e8eaf0;outline:none;box-sizing:border-box;margin-bottom:12px">
-      <button id="btn" style="width:100%;background:#6c8ef5;border:none;border-radius:7px;padding:11px;font-size:14px;font-weight:600;color:#fff;cursor:pointer">Entrar</button>
-      <div id="err" style="color:#e05c5c;font-size:12px;margin-top:10px;min-height:16px"></div>
-    </div>`;
-  document.body.appendChild(el);
-  function attempt() {
-    if (document.getElementById('pw').value === PASS) {
-      sessionStorage.setItem(KEY, '1');
-      location.reload();
-    } else {
-      document.getElementById('err').textContent = 'Contraseña incorrecta';
-      document.getElementById('pw').value = '';
-      document.getElementById('pw').focus();
-    }
-  }
-  document.getElementById('btn').addEventListener('click', attempt);
-  document.getElementById('pw').addEventListener('keydown', e => { if(e.key==='Enter') attempt(); });
-  return false;
-})();
-</script>
-
-<script>
-if (!window.__AUTH_OK) { throw new Error('not authenticated'); }
-</script>
-
-<script>
 // ── Datos históricos ──────────────────────────────────────────────────────────
 const AIRBNB_RAW = [
   {conf:'HMSPCRR2HE',date:'2025-10-24',nights:3,amount:1579.3,cleaning:390.0,commission:278.7,property:'IB - Pinos',source:'Airbnb CSV'},
@@ -2276,6 +2238,36 @@ const HOSTAWAY_CLIENT_ID = '97925';
 const UPDATED = '12 Jun 2026';
 
 // ── Utils ─────────────────────────────────────────────────────────────────────
+(function checkAuth() {
+  const PASS = '365stays2024';
+  const KEY = 'ds_auth';
+  if (sessionStorage.getItem(KEY) === '1') return startApp();
+  document.getElementById('root').innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#0f1117;z-index:9999;font-family:Inter,system-ui,sans-serif';
+  wrap.innerHTML = `<div style="background:#1a1d27;border:1px solid #2a2d3a;border-radius:12px;padding:40px;width:320px;text-align:center">
+    <div style="font-size:22px;font-weight:700;color:#e8eaf0;margin-bottom:6px">365stays</div>
+    <div style="font-size:12px;color:#7a7e94;margin-bottom:28px">Dashboard · Acceso restringido</div>
+    <input id="pw" type="password" placeholder="Contraseña" autofocus style="width:100%;background:#0f1117;border:1px solid #2a2d3a;border-radius:7px;padding:11px 14px;font-size:14px;color:#e8eaf0;outline:none;box-sizing:border-box;margin-bottom:12px">
+    <button id="btn" style="width:100%;background:#6c8ef5;border:none;border-radius:7px;padding:11px;font-size:14px;font-weight:600;color:#fff;cursor:pointer">Entrar</button>
+    <div id="err" style="color:#e05c5c;font-size:12px;margin-top:10px;min-height:16px"></div>
+  </div>`;
+  document.body.appendChild(wrap);
+  function attempt() {
+    if (document.getElementById('pw').value === PASS) {
+      sessionStorage.setItem(KEY, '1');
+      wrap.remove();
+      startApp();
+    } else {
+      document.getElementById('err').textContent = 'Contraseña incorrecta';
+      document.getElementById('pw').value = '';
+    }
+  }
+  document.getElementById('btn').addEventListener('click', attempt);
+  document.getElementById('pw').addEventListener('keydown', e => { if(e.key==='Enter') attempt(); });
+})();
+
+function startApp() {
 window.addEventListener('load', function() {
 const { useState, useMemo, useRef, useEffect, createElement: h } = React;
 // SVG charts — no external deps
@@ -2792,6 +2784,7 @@ function App() {
 
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
 }); // end window.onload
+} // end startApp
 </script>
 </body>
 </html>
