@@ -2258,7 +2258,7 @@ async function fetchHostawayLive() {
   const API = '/api/hostaway';
   let all = [], offset = 0, hasMore = true;
   while (hasMore) {
-    const resp = await fetch(`${API}?action=reservations&from=2023-01-01&to=2026-12-31&offset=${offset}`);
+    const resp = await fetch(`${API}?action=reservations&from=2025-01-01&to=2027-12-31&offset=${offset}`);
     const data = await resp.json();
     const result = data.result || [];
     all = all.concat(result);
